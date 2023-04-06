@@ -5,6 +5,7 @@ const { nanoid } = require('nanoid');
 const bcrypt = require('bcrypt');
 const InvariantError = require('../../exception/InvariantError');
 const NotFoundError = require('../../exception/NotFoundError');
+const AuthenticationsError = require('../../exception/AuthenticationError');
 
 class UsersService {
   constructor() {
@@ -54,6 +55,26 @@ class UsersService {
     }
 
     return result.rows[0];
+  }
+
+  async verifyUserCredential(username, password) {
+    const query = {
+      text: 'SELECT id, password FROM users WHERE username = $1',
+      values: [username],
+    };
+    const result = await this._pool.query(query);
+
+    if (!result.rows.length) {
+      throw new AuthenticationsError('Kredensial yang Anda berikan salah');
+    }
+    const { id, password: hashedPassword } = result.rows[0];
+
+    const match = await bcrypt.compare(password, hashedPassword);
+
+    if (!match) {
+      throw new AuthenticationsError('Kredensial yang anda berikan salah');
+    }
+    return id;
   }
 }
 module.exports = UsersService;
